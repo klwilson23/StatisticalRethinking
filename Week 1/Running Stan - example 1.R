@@ -12,7 +12,7 @@ schools_dat <- list(J = 8,
                     sigma = c(15, 10, 16, 11,  9, 11, 10, 18))
 
 fit <- stan(file = 'Week 1/8schools.stan', data = schools_dat)
-
+fit2 <- stan_demo('eight_schools')
 print(fit)
 plot(fit)
 pairs(fit, pars = c("mu", "tau", "lp__"))
