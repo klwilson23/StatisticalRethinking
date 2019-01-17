@@ -54,7 +54,7 @@ curve( dnorm( x , 0.67 , 0.16 ) , lty=2 , add=TRUE )
 
 
 # let's see where this breaks down:
-# let's approximate it via gaussian
+# let's approximate the posterior of a sample of 9 'waters' in 10 trials via gaussian
 globe.qa <- map(
   alist(
     w ~ dbinom(10,p) ,  # binomial likelihood
