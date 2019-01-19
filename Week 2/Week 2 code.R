@@ -1,5 +1,7 @@
 ## R code 2.3
 
+water_globe <- c(1,0,1,1,1,0,1,0,1) # 1 means we have a water, 0 means land
+
 # define the size and values of the grid
 Ngrid <- 20
 p_grid <- seq( from=0 , to=1 , length.out=Ngrid )
