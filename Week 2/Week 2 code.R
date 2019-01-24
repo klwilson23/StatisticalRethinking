@@ -1,6 +1,8 @@
 ## R code 2.3
-# define the size and values of the grid
 
+water_globe <- c(1,0,1,1,1,0,1,0,1) # 1 means we have a water, 0 means land
+
+# define the size and values of the grid
 Ngrid <- 20
 p_grid <- seq( from=0 , to=1 , length.out=Ngrid )
 
@@ -18,7 +20,7 @@ points(prior3,pch=21,bg=rgb(0,0,1,0.7))
 # compute likelihood at each value in grid
 # binomial distribution: flip 9 coins, you observe 6 heads. What is the probability the coin is weighted at any particular value?
 prior <- prior3
-likelihood <- dbinom( 6 , size=9 , prob=p_grid)
+likelihood <- dbinom( 6 , size=9 , prob=p_grid )
 
 # compute product of likelihood and prior
 unstd.posterior <- likelihood * prior
@@ -32,9 +34,6 @@ plot( p_grid , posterior , type="b" ,
 mtext( "20 points" )
 
 ## R code 2.6
-
-#library(devtools)
-#install_github("rmcelreath/rethinking")
 
 library(rethinking)
 globe.qa <- map(
@@ -209,7 +208,6 @@ w <- rbinom( Nsamps , size=9 , prob=0.6 )
 w <- rbinom( Nsamps , size=9 , prob=samples )
 
 hist(w[round(samples,1)==0.3],xlab="dummy water count",breaks=0:9,col=adjustcolor("orange",0.5),ylim=c(0,max(hist(w,plot=F)$count)),main="") # plot the density/probability of each value
-
 hist(w[round(samples,1)==0.6],xlab="dummy water count",breaks=0:9,col=adjustcolor("dodgerblue",0.5),ylim=c(0,max(hist(w,plot=F)$count)),add=T) # plot the density/probability of each value
 hist(w[round(samples,1)==0.9],xlab="dummy water count",breaks=0:9,col=adjustcolor("darkblue",0.5),ylim=c(0,max(hist(w,plot=F)$count)),add=T) # plot the density/probability of each value
 
