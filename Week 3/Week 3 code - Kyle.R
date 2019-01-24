@@ -221,7 +221,7 @@ invisible(sapply(1:250,function(i){
   curve(postv1$b[i]+postv1$m[i]*x,add=T,lwd=2,col=adjustcolor("grey",alpha=0.1))
 }))
 
-NsubSamp <- 100
+NsubSamp <- 25
 datv2 <- list(N = NsubSamp,
               height = d2$height[1:NsubSamp],
               weight_c = (d2$weight[1:NsubSamp]-mean(d2$weight[1:NsubSamp])))
@@ -235,3 +235,88 @@ plot(height~weight_c,data=datv2,pch=21,bg="dodgerblue")
 invisible(sapply(1:250,function(i){
   curve(postv2$b[i]+postv2$m[i]*x,add=T,lwd=2,col=adjustcolor("grey",alpha=0.1))
 }))
+
+# create a posterior predictive distribution and plot the uncertainty in the model
+weight.seq <- seq(from=-20,to=30,by=1)
+post_pred <- matrix(NA,nrow=nrow(postCentered),ncol=length(weight.seq))
+for(i in 1:nrow(post_pred))
+{
+  post_pred[i,] <- rnorm(length(weight.seq),
+                         mean=postCentered$b[i]+postCentered$m[i]*weight.seq,
+                         sd=postCentered$sigma[i])
+}
+
+mu.mean <- apply(post_pred,2,mean)
+mu.hdi <- apply(post_pred,2,HPDI,prob=0.89)
+
+layout(1)
+plot(height~weight_c,data=datCentered,pch=21,bg="dodgerblue")
+polygon(c(weight.seq,rev(weight.seq)),c(mu.hdi[1,],rev(mu.hdi[2,])),col=adjustcolor("dodgerblue",0.2),border=F)
+lines(weight.seq,mu.mean,col=adjustcolor("black",0.8),lwd=3)
+
+# we've been looking at just adults for a few reasons: young people put on height more quickly than weight!
+# but what about the entire dataset?
+
+plot(height~weight,data=d)
+
+# what about a polynomial regression?
+# can use polynomial regression to understand height ~ weight for ALL ages of people
+
+# to reduce the correlation, let's center the data on the average weight:
+stanPoly <- "
+data {
+  int<lower=0> N;
+  vector[N] height;
+  vector[N] weight_c;
+  vector[N] weight_sq;
+}
+parameters {
+  real b; // intercept
+  real m; // slope
+  real poly; // polynomial inflection point
+  real<lower=0,upper=50> sigma;
+}
+model {
+  // declare length of a numeric vector called mu
+  vector[N] mu = m * weight_c + poly * weight_sq + b;
+  target += normal_lpdf(height | mu, sigma);
+  target += normal_lpdf(b | mean(height), 20); // prior on intercept
+  target += normal_lpdf(m | 0, 10); // prior on slope
+  target += normal_lpdf(poly | 0, 10); // prior on polynomial term
+}
+
+"
+
+datPoly <- list(N = nrow(d),
+                height = d$height,
+                weight_c = (d$weight-mean(d$weight)),
+                weight_sq = (d$weight-mean(d$weight))^2)
+
+fitPoly <- stan(model_code=stanPoly, data=datPoly,
+                    chains = 2, iter = 2000,cores=2,
+                    pars=c("b","m","poly","sigma"))
+fitPoly
+
+postPoly <- as.data.frame(fitPoly)
+colMeans(postPoly) # average height at the average weight
+pairs(postPoly,lower.panel=panel.smooth)
+cor(postPoly)
+
+# create a posterior predictive distribution and plot the uncertainty in the model
+weight.seq <- seq(from=-40,to=40,by=1)
+post_pred <- matrix(NA,nrow=nrow(postPoly),ncol=length(weight.seq))
+for(i in 1:nrow(post_pred))
+{
+  post_pred[i,] <- rnorm(length(weight.seq),
+                         mean=postPoly$b[i]+postPoly$m[i]*weight.seq + postPoly$poly[i]*weight.seq^2,
+                         sd=postPoly$sigma[i])
+}
+
+mu.mean <- apply(post_pred,2,mean)
+mu.hdi <- apply(post_pred,2,HPDI,prob=0.89)
+
+layout(1)
+plot(height~weight_c,data=datPoly,pch=21,bg="dodgerblue")
+polygon(c(weight.seq,rev(weight.seq)),c(mu.hdi[1,],rev(mu.hdi[2,])),col=adjustcolor("dodgerblue",0.2),border=F)
+lines(weight.seq,mu.mean,col=adjustcolor("black",0.8),lwd=3)
+
