@@ -101,5 +101,6 @@ fit <- stan(model_code=stanModel, data=dat,
             pars=c("mu","sigma"))
 fit
 
+# compare model fits with the values from the gaussian approximation
 
 
