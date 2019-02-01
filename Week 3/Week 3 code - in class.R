@@ -100,7 +100,120 @@ fit <- stan(model_code=stanModel, data=dat,
             chains=2, iter=2000, cores=2,
             pars=c("mu","sigma"))
 fit
+plot(fit)
+traceplot(fit)
+
+# store posterior samples
+post <- as.data.frame(fit)
+str(post)
 
 # compare model fits with the values from the gaussian approximation
 
+mean(post$mu)
+sd(post$mu)
+precis(mFit)
 
+# this is dumb. we want to do actual regression
+head(d2)
+plot(height~weight,data=d2,xlab="Weight (kg)",ylab="Height (cm)",
+     pch=21,bg=ifelse(male==1,"orange","dodgerblue"))
+
+stanRegression <- "
+data{
+  int<lower=0> N;
+  vector[N] height;
+  vector[N] weight;
+}
+parameters{
+  real b; // intercept
+  real m; // slope
+  real sigma; // standard deviation (variance = sigma^2)
+}
+model{
+  vector[N] mu = weight*m + b; // define mu as y=mx+b
+  target += normal_lpdf(height | mu, sigma); // likelihood based on data
+  target += normal_lpdf(b | mean(height), sd(height));
+  target += normal_lpdf(m | 0, 10); // set this prior on slope
+  target += uniform_lpdf(sigma | 0, 100);
+}
+"
+
+dat <- list("N"=nrow(d2),
+            "height"=d2$height,
+            "weight"=d2$weight)
+
+fitRegression <- stan(model_code=stanRegression,
+                      data=dat, chains=2, iter = 2000, cores = 2,
+                      pars = c("b","m","sigma"))
+
+fitRegression
+
+post2 <- as.data.frame(fitRegression)
+head(post2)
+fitRegression@sim$samples[[1]][["b"]][1001]
+
+colMeans(post2)
+pairs(post2, lower.panel=panel.smooth)
+cor(post2)
+
+# 
+
+stanCentered <- "
+data{
+  int<lower=0> N;
+  vector[N] height;
+  vector[N] weight_c;
+}
+parameters{
+  real b; // intercept
+  real m; // slope
+  real sigma; // standard deviation (variance = sigma^2)
+}
+model{
+  vector[N] mu = weight_c*m + b; // define mu as y=mx+b
+  target += normal_lpdf(height | mu, sigma); // likelihood based on data
+
+  target += normal_lpdf(b | mean(height), sd(height));
+  target += normal_lpdf(m | 0, 10); // set this prior on slope
+  target += uniform_lpdf(sigma | 0, 100);
+}
+"
+
+datCentered <- list("N"=nrow(d2),
+                    "height"=d2$height,
+                    "weight_c"=d2$weight-mean(d2$weight))
+
+fitCentered <- stan(model_code=stanCentered,
+                    data=datCentered,chains=2,iter=2000,cores=2,
+                    pars=c("b","m","sigma"))
+
+postCentered <- as.data.frame(fitCentered)
+colMeans(postCentered)
+colMeans(post2)
+
+pairs(postCentered,lower.panel=panel.smooth)
+
+plot(height~weight_c,data=datCentered,pch=21,bg="dodgerblue")
+invisible(sapply(1:250,function(i){
+  curve(postCentered$b[i]+postCentered$m[i]*x,add=T,lwd=2,col=adjustcolor("grey",alpha=0.1))
+}))
+
+curve(mean(postCentered$b)+mean(postCentered$m)*x,add=T,lwd=5)
+
+# create a posterior predictive distribution and plot the uncertainty in the model
+
+weight.seq <- seq(-20,30,by=1)
+post_pred <- matrix(NA,nrow=nrow(postCentered),ncol=length(weight.seq))
+
+for(i in 1:nrow(post_pred))
+{
+  post_pred[i,] <- rnorm(length(weight.seq),
+                         mean=postCentered$b[i] + postCentered$m[i]*weight.seq,sd=postCentered$sigma[i])
+}
+
+mu.mean <- apply(post_pred,2,mean)
+mu.hdi <- apply(post_pred,2,HPDI,prob=0.89)
+
+plot(height~weight_c,data=datCentered,pch=21,bg="dodgerblue")
+polygon(c(weight.seq,rev(weight.seq)),c(mu.hdi[1,],rev(mu.hdi[2,])),col=adjustcolor("dodgerblue",0.7),border=F)
+lines(weight.seq,mu.mean,col=adjustcolor("black",0.8),lwd=3)
