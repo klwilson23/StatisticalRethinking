@@ -64,13 +64,15 @@ endtime
 
 # analyze your cost-benefit ratios
 power <- results[2,,,"Power (lme4)"]
+power[power<0.8] <- NA
 noType1 <- 1-results[1,,,"Type I error (lme4)"]
+noType1[noType1<0.95] <- NA
 
 cost <- sapply(costSamp*nSamps,function(x){x+costSite*nSites})
 dimnames(cost) <- dimnames(power)
 
 # find where you have minimal costs that maximizes your power and chance to avoid type 1 error
-costBenefit <- which(abs(cost/power-min(cost/power)+(cost/type1-min(cost/type1)))==min(abs(cost/power-min(cost/power)+(cost/type1-min(cost/type1)))),arr.ind=T)
+costBenefit <- which(abs(cost/power-min(cost/power,na.rm=T)+(cost/type1-min(cost/type1,na.rm=T)))==min(abs(cost/power-min(cost/power,na.rm=T)+(cost/type1-min(cost/type1,na.rm=T)))),arr.ind=T)
 paste("Sites = ",nSites[costBenefit[1]]," & ",
         "Samples = ",nSamps[costBenefit[2]],sep="")
 
